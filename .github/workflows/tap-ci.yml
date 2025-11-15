@@ -1,0 +1,130 @@
+# Reusable Workflow for All Taps
+# Uses Hetzner Cloud self-hosted runners (98% cheaper than GitHub runners)
+
+name: Tap CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      tap_id:
+        description: 'Tap ID (e.g., re01, cl01)'
+        required: true
+        type: string
+      server_type:
+        description: 'Hetzner server type (cx22, cx32, cx42, etc.)'
+        required: false
+        type: string
+        default: 'cx22'
+      image:
+        description: 'OS image (ubuntu-24.04, rocky-9, etc.)'
+        required: false
+        type: string
+        default: 'ubuntu-24.04'
+      location:
+        description: 'Hetzner location (nbg1, fsn1, hel1)'
+        required: false
+        type: string
+        default: 'nbg1'
+      timeout_minutes:
+        description: 'Extraction timeout'
+        required: false
+        type: number
+        default: 30
+
+env:
+  OBJECTSTORAGE_BUCKET_NAME: walkthru-earth
+  OBJECTSTORAGE_ENDPOINT: https://walkthru-earth.fsn1.your-objectstorage.com
+
+jobs:
+  create-runner:
+    name: Create Hetzner Runner
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.create.outputs.label }}
+      server_id: ${{ steps.create.outputs.server_id }}
+    steps:
+      - name: Create Hetzner Cloud runner
+        id: create
+        uses: Cyclenerd/hcloud-github-runner@v1
+        with:
+          mode: create
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          server_type: ${{ inputs.server_type }}
+          location: ${{ inputs.location }}
+          image: ${{ inputs.image }}
+          # Use SSH key to disable root password and email notifications (optional)
+          # ssh_key: ${{ secrets.HCLOUD_SSH_KEY_ID }}
+
+  extract:
+    name: Extract ${{ inputs.tap_id }}
+    needs: create-runner
+    runs-on: ${{ needs.create-runner.outputs.label }}
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install DuckDB
+        run: |
+          wget -q https://github.com/duckdb/duckdb/releases/download/v1.4.2/duckdb_cli-linux-amd64.zip
+          unzip -q duckdb_cli-linux-amd64.zip
+          sudo mv duckdb /usr/local/bin/
+          duckdb --version
+
+      - name: Setup directories
+        run: |
+          mkdir -p data logs
+          cd taps/${{ inputs.tap_id }}
+
+      - name: Run extraction
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.OBJECTSTORAGE_API_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.OBJECTSTORAGE_API_SECRET }}
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Tap:      ${{ inputs.tap_id }}"
+          echo "Runner:   ${{ inputs.server_type }} (${{ inputs.image }}) @ ${{ inputs.location }}"
+          echo "Output:   s3://walkthru-earth/${{ inputs.tap_id }}/"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          duckdb -c ".read taps/${{ inputs.tap_id }}/extract.sql" \
+            2>&1 | tee logs/${{ inputs.tap_id }}_$(date +%Y%m%d).log
+
+      - name: Verify export
+        run: |
+          # Check local file exists
+          if [ ! -f "data/${{ inputs.tap_id }}_latest.parquet" ]; then
+            echo "❌ Error: Local parquet file not created"
+            exit 1
+          fi
+
+          # Show record count
+          echo "✅ Record count:"
+          duckdb -c "SELECT COUNT(*) as records FROM 'data/${{ inputs.tap_id }}_latest.parquet'"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.tap_id }}-$(date +%Y%m%d)
+          path: |
+            data/*.parquet
+            logs/*.log
+          retention-days: 90
+
+  delete-runner:
+    name: Delete Hetzner Runner
+    needs:
+      - create-runner
+      - extract
+    runs-on: ubuntu-latest
+    if: always()  # Always clean up, even if extraction fails
+    steps:
+      - name: Delete Hetzner Cloud runner
+        uses: Cyclenerd/hcloud-github-runner@v1
+        with:
+          mode: delete
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          name: ${{ needs.create-runner.outputs.label }}
+          server_id: ${{ needs.create-runner.outputs.server_id }}

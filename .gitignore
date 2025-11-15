@@ -1,0 +1,43 @@
+# Logs
+logs/*.log
+*.log
+
+# Data (cached locally)
+data/*.parquet
+data/*.geoparquet
+data/*.duckdb
+
+# Keep structure
+!data/.gitkeep
+!logs/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# DuckDB
+*.duckdb
+*.db
+!taps/*/catalog.db
+!registry/registry.db
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Secrets
+.env
+*.key
+.secrets/
+
+# Temporary
+*.tmp
+.cache/

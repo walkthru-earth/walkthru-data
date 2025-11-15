@@ -1,0 +1,122 @@
+# Dynamic Tap Scheduler
+# Runs frequently and checks which taps are due based on their tap.yaml schedules
+# Only executes taps that need to run
+
+name: Tap Scheduler
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch:     # Manual trigger
+    inputs:
+      tap_id:
+        description: 'Run specific tap (leave empty for all due taps)'
+        required: false
+        type: string
+      force:
+        description: 'Force run even if not due'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  OBJECTSTORAGE_BUCKET_NAME: walkthru-earth
+  OBJECTSTORAGE_ENDPOINT: https://walkthru-earth.fsn1.your-objectstorage.com
+
+jobs:
+  discover:
+    name: Discover Due Taps
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      count: ${{ steps.build-matrix.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Find due taps
+        id: find
+        run: |
+          if [ "${{ github.event.inputs.tap_id }}" != "" ]; then
+            # Manual trigger for specific tap
+            echo "taps=[\"${{ github.event.inputs.tap_id }}\"]" >> $GITHUB_OUTPUT
+            echo "count=1" >> $GITHUB_OUTPUT
+          else
+            # Auto-discover due taps
+            python scripts/find-due-taps.py > due_taps.json
+            TAPS=$(cat due_taps.json)
+            echo "taps=$TAPS" >> $GITHUB_OUTPUT
+            COUNT=$(echo "$TAPS" | jq 'length')
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+            echo "Found $COUNT tap(s) due to run"
+            cat due_taps.json | jq .
+          fi
+
+      - name: Build matrix with runner configs
+        id: build-matrix
+        run: |
+          TAPS='${{ steps.find.outputs.taps }}'
+
+          # Build matrix with tap ID and runner config
+          MATRIX='{"include":['
+          FIRST=true
+          for tap_id in $(echo "$TAPS" | jq -r '.[]'); do
+            if [ "$FIRST" = false ]; then
+              MATRIX+=","
+            fi
+            FIRST=false
+
+            # Get runner config from tap.yaml
+            CONFIG=$(python scripts/get-runner-config.py "$tap_id")
+            SERVER_TYPE=$(echo "$CONFIG" | jq -r '.server_type')
+            IMAGE=$(echo "$CONFIG" | jq -r '.image')
+            LOCATION=$(echo "$CONFIG" | jq -r '.location')
+            TIMEOUT=$(echo "$CONFIG" | jq -r '.timeout_minutes')
+
+            MATRIX+="{\"tap\":\"$tap_id\",\"server_type\":\"$SERVER_TYPE\",\"image\":\"$IMAGE\",\"location\":\"$LOCATION\",\"timeout\":$TIMEOUT}"
+          done
+          MATRIX+=']}'
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "count=$(echo "$TAPS" | jq 'length')" >> $GITHUB_OUTPUT
+
+          echo "Matrix:"
+          echo "$MATRIX" | jq .
+
+  extract:
+    name: Extract ${{ matrix.tap }}
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      fail-fast: false  # Continue other taps if one fails
+    uses: ./.github/workflows/tap-ci.yml
+    with:
+      tap_id: ${{ matrix.tap }}
+      server_type: ${{ matrix.server_type }}
+      image: ${{ matrix.image }}
+      location: ${{ matrix.location }}
+      timeout_minutes: ${{ matrix.timeout }}
+    secrets: inherit
+
+  summary:
+    name: Summary
+    needs: [discover, extract]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "## Tap Scheduler Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Taps discovered**: ${{ needs.discover.outputs.count }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Taps**: ${{ needs.discover.outputs.taps }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: ${{ needs.extract.result }}" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,158 @@
+# Tap Manifest
+# Format: https://walkthru-data.readthedocs.io/tap-manifest/
+
+tap:
+  id: re01
+  namespace: walkthru
+  full_id: walkthru/re01
+
+meta:
+  name: "Nawy Real Estate Data"
+  description: "Real estate compounds and developments across Egypt from Nawy"
+  category: real-estate
+  tags:
+    - egypt
+    - real-estate
+    - geospatial
+    - monthly
+    - compounds
+  license: Unknown
+  homepage: https://nawy.com
+  source_url: https://listing-api.nawy.com/v1/maps
+
+source:
+  type: api
+  method: http_get
+  auth: none
+  rate_limit: null
+  coverage:
+    region: Egypt
+    bbox:
+      min_lat: 22.0
+      max_lat: 31.5
+      min_lon: 25.0
+      max_lon: 36.0
+
+output:
+  format: ducklake           # Use DuckLake lakehouse format
+  storage: s3
+  bucket: walkthru-earth
+  path: re01                 # s3://walkthru-earth/re01/
+  partitions:
+    - country              # ISO 3166-1 alpha-3
+    - year                 # YYYY
+    - month                # MM
+  compression: zstd
+  row_group_size: 100000
+
+schedule:
+  frequency: monthly
+  day: 1                   # 1st of month
+  time: "02:00"
+  timezone: UTC
+  enabled: true
+
+extract:
+  script: extract.sql
+  engine: duckdb
+  version: "1.4.2"
+  extensions:
+    - httpfs
+    - http_client
+    - spatial
+    - json
+  timeout_minutes: 30
+
+runner:
+  # Hetzner Cloud self-hosted runner configuration
+  # See: https://github.com/Cyclenerd/hcloud-github-runner
+  provider: hetzner  # Always use Hetzner (98% cheaper than GitHub runners)
+  server_type: cx22  # 2 vCPU, 4GB RAM, 40GB SSD ($0.0074/hr vs GitHub $0.48/hr)
+  architecture: x86  # x86 or arm (Ampere Altra)
+  image: ubuntu-24.04  # OS image
+  location: nbg1  # Nuremberg, Germany (eu-central)
+  # Available server types:
+  #   cx22:  2 vCPU,  4GB RAM,  40GB SSD (shared x86)
+  #   cx32:  4 vCPU,  8GB RAM,  80GB SSD (shared x86)
+  #   cx42:  8 vCPU, 16GB RAM, 160GB SSD (shared x86)
+  #   cx52: 16 vCPU, 32GB RAM, 320GB SSD (shared x86)
+  #   cax11: 2 vCPU,  4GB RAM,  40GB SSD (shared arm)
+  #   cax21: 4 vCPU,  8GB RAM,  80GB SSD (shared arm)
+  #   ccx13: 2 vCPU,  8GB RAM,  80GB SSD (dedicated x86)
+  #   ccx23: 4 vCPU, 16GB RAM, 160GB SSD (dedicated x86)
+  # Available images: ubuntu-24.04, ubuntu-22.04, debian-12, rocky-9, fedora-41
+  # Available locations: nbg1 (Nuremberg), fsn1 (Falkenstein), hel1 (Helsinki)
+
+catalog:
+  type: sqlite              # Per-tap SQLite catalog
+  location: catalog.db
+  sync_to_s3: true
+  central_registry: true    # Also register in central registry.db
+  retention_snapshots: 12   # Keep last 12 snapshots
+
+schema:
+  version: "1.0.0"
+  fields:
+    - name: extracted_at
+      type: TIMESTAMP
+      description: Extraction timestamp
+    - name: year
+      type: INTEGER
+      description: Partition key - year
+    - name: month
+      type: INTEGER
+      description: Partition key - month
+    - name: country
+      type: VARCHAR
+      description: Partition key - ISO3 country code
+    - name: id
+      type: INTEGER
+      description: Compound ID (primary key)
+      primary_key: true
+    - name: name
+      type: VARCHAR
+      description: Compound name (English)
+    - name: name_ar
+      type: VARCHAR
+      description: Compound name (Arabic)
+    - name: latitude
+      type: DOUBLE
+      description: Latitude coordinate
+    - name: longitude
+      type: DOUBLE
+      description: Longitude coordinate
+    - name: geometry
+      type: GEOMETRY
+      description: Polygon or point geometry
+    - name: area_name
+      type: VARCHAR
+      description: Development area name
+    - name: developer_name
+      type: VARCHAR
+      description: Developer company name
+    - name: min_price
+      type: DOUBLE
+      description: Minimum property price
+    - name: max_price
+      type: DOUBLE
+      description: Maximum property price
+    - name: currency
+      type: VARCHAR
+      description: Currency code
+    - name: status
+      type: VARCHAR
+      description: Development status
+
+maintainers:
+  - github: yharby
+    email: harby@walkthru.earth
+    role: owner
+
+metrics:
+  expected_records: 1200
+  expected_file_size_mb: 1
+  freshness_hours: 720      # 30 days
+
+created: "2025-11-15"
+updated: "2025-11-15"
+version: "1.0.0"
