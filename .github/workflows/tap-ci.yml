@@ -68,8 +68,9 @@ jobs:
       - name: Install DuckDB
         run: |
           mkdir -p ~/.duckdb/bin
-          wget -q https://github.com/duckdb/duckdb/releases/download/v1.4.2/duckdb_cli-linux-aarch64.zip
-          unzip -q duckdb_cli-linux-aarch64.zip -d ~/.duckdb/bin
+          LATEST_URL=$(curl -s https://api.github.com/repos/duckdb/duckdb/releases/latest | grep 'browser_download_url.*duckdb_cli-linux-arm64.zip' | cut -d'"' -f4)
+          wget -q "$LATEST_URL"
+          unzip -q duckdb_cli-linux-arm64.zip -d ~/.duckdb/bin
           chmod +x ~/.duckdb/bin/duckdb
           ~/.duckdb/bin/duckdb --version
           echo ~/.duckdb/bin >> $GITHUB_PATH
