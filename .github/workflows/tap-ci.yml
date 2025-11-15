@@ -68,11 +68,12 @@ jobs:
       - name: Install DuckDB
         run: |
           curl -fsSL https://install.duckdb.org | sh
-          ls -la ~/.duckdb/cli/latest/
-          export PATH=~/.duckdb/cli/latest:$PATH
-          echo ~/.duckdb/cli/latest >> $GITHUB_PATH
-          which duckdb
-          duckdb --version
+          echo "HOME is: $HOME"
+          echo "User is: $(whoami)"
+          echo "Checking if .duckdb directory exists:"
+          ls -la ~/.duckdb/ || echo ".duckdb not found in home"
+          find ~ -name "duckdb" -type f 2>/dev/null || echo "duckdb binary not found"
+          ~/.duckdb/cli/1.4.2/duckdb --version
 
       - name: Setup directories
         run: |
