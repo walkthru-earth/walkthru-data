@@ -82,6 +82,7 @@ jobs:
 
       - name: Run extraction
         env:
+          HOME: /root
           AWS_ACCESS_KEY_ID: ${{ secrets.OBJECTSTORAGE_API_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.OBJECTSTORAGE_API_SECRET }}
         run: |
