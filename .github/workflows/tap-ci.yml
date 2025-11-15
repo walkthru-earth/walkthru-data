@@ -140,7 +140,18 @@ jobs:
           "
 
           # Install s5cmd for S3 uploads
-          wget -q https://github.com/peak/s5cmd/releases/latest/download/s5cmd_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz -O - | tar xz
+          # Get the correct download URL from GitHub API (handles version-specific naming)
+          OS=$(uname -s)  # Linux, Darwin, etc. (with capital first letter)
+          ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+          S5CMD_URL=$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest | grep "browser_download_url.*${OS}-${ARCH}.tar.gz" | cut -d'"' -f4)
+
+          if [ -z "$S5CMD_URL" ]; then
+            echo "❌ Error: Could not find s5cmd release for ${OS}-${ARCH}"
+            exit 1
+          fi
+
+          echo "Downloading s5cmd from: $S5CMD_URL"
+          wget -q "$S5CMD_URL" -O - | tar xz
           chmod +x s5cmd
 
           # Upload catalog to tap's isolated S3 directory
