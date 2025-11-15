@@ -24,21 +24,39 @@ walkthru install dm01
 walkthru query dm01 "SELECT * FROM data LIMIT 10"
 ```
 
-## Direct S3 Access
+## Direct S3 Access (Simple & Efficient)
+
+Attach the S3 catalog directly and query:
 
 ```sql
--- DuckDB
+-- Configure S3 access (Hetzner Object Storage)
 CREATE OR REPLACE SECRET s3_secret (
     TYPE S3,
     PROVIDER credential_chain,
-    CHAIN 'env',
-    ENDPOINT 'walkthru-earth.fsn1.your-objectstorage.com',
-    URL_STYLE 'path',
-    USE_SSL true
+    ENDPOINT 'fsn1.your-objectstorage.com',
+    URL_STYLE 'vhost',
+    USE_SSL true,
+    REGION 'us-east-1'
 );
 
-SELECT * FROM 's3://walkthru-earth/dm01/**/*.parquet' LIMIT 10;
+-- Attach tap's DuckLake catalog from S3 (read-only)
+ATTACH 'ducklake:sqlite:s3://walkthru-earth/dm01/catalog.ducklake' AS dm01 (READ_ONLY);
+
+-- Query tables directly
+SELECT * FROM dm01.countries LIMIT 10;
+
+-- Filter and aggregate
+SELECT region, COUNT(*) as country_count, SUM(population) as total_pop
+FROM dm01.countries
+GROUP BY region
+ORDER BY total_pop DESC;
 ```
+
+**Benefits:**
+- ✅ **Simple**: One command to attach, then query like any database
+- ✅ **Efficient**: DuckLake handles data layout and statistics
+- ✅ **Versioned**: Snapshots and time travel built-in
+- ✅ **Isolated**: Each tap is completely isolated in its own S3 folder
 
 ## Schema
 

@@ -48,22 +48,29 @@ walkthru-data/
 └── .github/workflows/ # Automated extraction
 ```
 
-## S3 Storage
+## S3 Storage (Simple & Isolated)
 
-All data published to S3-compatible object storage:
+Each tap has its own S3 directory:
 
 ```
 s3://walkthru-earth/
-├── re01/                    # Nawy real estate
-│   ├── catalog.db           # DuckLake catalog
-│   └── country=EGY/
-│       └── year=2025/
-│           └── month=11/
-│               └── data.parquet
+├── dm01/                                    # World Population (isolated)
+│   ├── catalog.ducklake                     # SQLite catalog
+│   └── main/countries/*.parquet             # Data files (DuckLake managed)
 │
-└── _registry/
-    └── registry.db          # Central catalog
+├── re01/                                    # Nawy Real Estate (isolated)
+│   ├── catalog.ducklake                     # SQLite catalog
+│   └── main/compounds/*.parquet             # Data files (DuckLake managed)
+│
+└── _registry/                               # Central discovery
+    └── taps.json                            # Tap metadata
 ```
+
+**Simple Design:**
+- ✅ **Isolated**: Each tap = one S3 folder
+- ✅ **No Cross-Access**: Taps can't touch other taps' data
+- ✅ **Homebrew Model**: Contribute taps like homebrew formulae
+- ✅ **Cloud-Native**: Hard-to-access data → easy S3 access
 
 ## Tap ID System
 

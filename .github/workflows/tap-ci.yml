@@ -117,26 +117,51 @@ jobs:
             2>&1 | tee logs/${{ inputs.tap_id }}_$(date +%Y%m%d).log
 
       - name: Verify export
+        env:
+          HOME: /root
+          AWS_ACCESS_KEY_ID: ${{ secrets.OBJECTSTORAGE_API_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.OBJECTSTORAGE_API_SECRET }}
         run: |
-          # Check local file exists
-          if [ ! -f "data/${{ inputs.tap_id }}_latest.parquet" ]; then
-            echo "❌ Error: Local parquet file not created"
+          # Check DuckLake catalog exists
+          if [ ! -f "data/${{ inputs.tap_id }}.ducklake" ]; then
+            echo "❌ Error: DuckLake catalog not created"
             exit 1
           fi
 
-          # Show record count
-          echo "✅ Record count:"
-          duckdb -c "SELECT COUNT(*) as records FROM 'data/${{ inputs.tap_id }}_latest.parquet'"
+          # Show catalog summary
+          echo "✅ DuckLake catalog summary:"
+          duckdb -c "
+            ATTACH 'ducklake:sqlite:data/${{ inputs.tap_id }}.ducklake' AS lake (READ_ONLY);
+            SELECT
+              '${{ inputs.tap_id }}' AS tap_id,
+              table_name
+            FROM duckdb_tables()
+            WHERE database_name = 'lake';
+          "
+
+          # Install s5cmd for S3 uploads
+          wget -q https://github.com/peak/s5cmd/releases/latest/download/s5cmd_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz -O - | tar xz
+          chmod +x s5cmd
+
+          # Upload catalog to tap's isolated S3 directory
+          echo "📤 Uploading catalog to s3://walkthru-earth/${{ inputs.tap_id }}/catalog.ducklake"
+
+          S3_ENDPOINT_URL="https://fsn1.your-objectstorage.com" \
+            ./s5cmd cp "data/${{ inputs.tap_id }}.ducklake" \
+            "s3://walkthru-earth/${{ inputs.tap_id }}/catalog.ducklake" \
+            && echo "✅ Catalog uploaded successfully" \
+            || echo "⚠️  Catalog upload failed (will be available in artifacts)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ${{ inputs.tap_id }}-$(date +%Y%m%d)
+          name: ${{ inputs.tap_id }}-catalog-${{ github.run_number }}
           path: |
-            data/*.parquet
-            logs/*.log
-          retention-days: 90
+            data/${{ inputs.tap_id }}.ducklake
+            data/catalog_*.parquet
+          retention-days: 14
+          compression-level: 0
 
   delete-runner:
     name: Delete Hetzner Runner

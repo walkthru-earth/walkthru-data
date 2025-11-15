@@ -110,10 +110,10 @@ INSTALL json; LOAD json;
 CREATE OR REPLACE SECRET s3_secret (
     TYPE S3,
     PROVIDER credential_chain,
-    CHAIN 'env;config',
-    ENDPOINT 'walkthru-earth.fsn1.your-objectstorage.com',
-    URL_STYLE 'path',
-    USE_SSL true
+    ENDPOINT 'fsn1.your-objectstorage.com',
+    URL_STYLE 'vhost',
+    USE_SSL true,
+    REGION 'us-east-1'
 );
 
 -- Configuration

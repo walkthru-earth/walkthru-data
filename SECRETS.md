@@ -131,3 +131,28 @@ After adding secrets, verify they're configured correctly:
 - Secret name mismatch (case-sensitive)
 - Secret not accessible to repository
 - Solution: Check secret name spelling and repository access
+
+---
+
+## DuckDB S3 Secret Configuration
+
+### For Hetzner Object Storage
+
+When using DuckDB with Hetzner Object Storage, use the following configuration:
+
+```sql
+CREATE OR REPLACE SECRET s3_secret (
+    TYPE S3,
+    PROVIDER credential_chain,
+    ENDPOINT 'fsn1.your-objectstorage.com',  -- Without bucket name!
+    URL_STYLE 'vhost',                        -- Use virtual-host style
+    USE_SSL true,
+    REGION 'us-east-1'                       -- Any region works
+);
+```
+
+**Important Notes:**
+- **ENDPOINT**: Use `fsn1.your-objectstorage.com` (or `nbg1`, `hel1`) WITHOUT the bucket name
+- **URL_STYLE**: Must be `'vhost'` (virtual-host style), NOT `'path'`
+- **PROVIDER**: Use `credential_chain` to automatically pick up `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from environment variables
+- **REGION**: Any value works (`'us-east-1'` is fine)

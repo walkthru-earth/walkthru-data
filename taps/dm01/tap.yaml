@@ -58,6 +58,7 @@ extract:
     - httpfs
     - http_client
     - json
+    - ducklake
   timeout_minutes: 10
 
 runner:
@@ -68,8 +69,10 @@ runner:
   location: nbg1  # nbg1 (Nuremberg), fsn1 (Falkenstein), hel1 (Helsinki)
 
 catalog:
-  type: sqlite
-  location: catalog.db
+  type: ducklake
+  backend: sqlite
+  location: dm01.ducklake
+  data_path: s3://walkthru-earth/dm01/
   sync_to_s3: true
   central_registry: true
   retention_snapshots: 12

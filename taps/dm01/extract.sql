@@ -2,12 +2,14 @@
 -- Tap: dm01 (World Population Data)
 -- Source: REST Countries API
 -- Output: s3://walkthru-earth/dm01/
+-- Catalog: SQLite-based DuckLake catalog
 -- ============================================================================
 
 -- Install extensions
 INSTALL httpfs; LOAD httpfs;
 INSTALL http_client FROM community; LOAD http_client;
 INSTALL json; LOAD json;
+INSTALL sqlite; LOAD sqlite;
 
 -- ============================================================================
 -- S3 Configuration
@@ -16,10 +18,10 @@ INSTALL json; LOAD json;
 CREATE OR REPLACE SECRET s3_secret (
     TYPE S3,
     PROVIDER credential_chain,
-    CHAIN 'env;config',
-    ENDPOINT 'walkthru-earth.fsn1.your-objectstorage.com',
-    URL_STYLE 'path',
-    USE_SSL true
+    ENDPOINT 'fsn1.your-objectstorage.com',
+    URL_STYLE 'vhost',
+    USE_SSL true,
+    REGION 'us-east-1'
 );
 
 -- Configuration
@@ -63,49 +65,57 @@ WHERE cca3 IS NOT NULL
 ORDER BY population DESC;
 
 -- ============================================================================
--- Export to S3 with Hive Partitioning
+-- DuckLake Setup (Simple & Isolated)
 -- ============================================================================
 
--- Export partitioned data
--- Path: s3://walkthru-earth/dm01/year=YYYY/month=MM/*.parquet
-COPY (
-    SELECT
-        country_code,
-        country_name,
-        official_name,
-        population,
-        area_km2,
-        region,
-        subregion,
-        capital,
-        latitude,
-        longitude,
-        extracted_at,
-        year,
-        month
-    FROM countries_final
-) TO 's3://walkthru-earth/dm01'
-(
-    FORMAT 'PARQUET',
-    PARTITION_BY (year, month),
-    COMPRESSION 'ZSTD',
-    ROW_GROUP_SIZE 100000
+-- Install DuckLake extension
+INSTALL ducklake;
+LOAD ducklake;
+
+-- Attach DuckLake - Simple isolated structure
+-- Catalog: s3://walkthru-earth/dm01/catalog.ducklake
+-- Data:    s3://walkthru-earth/dm01/ (Hive partitions)
+ATTACH 'ducklake:sqlite:data/dm01.ducklake' AS dm01_lake (
+    DATA_PATH 's3://walkthru-earth/dm01/'
 );
 
+-- Create table in DuckLake (automatically versioned and snapshotted)
+CREATE OR REPLACE TABLE dm01_lake.countries AS
+SELECT * FROM countries_final;
+
+-- Detach to ensure all writes are flushed
+DETACH dm01_lake;
+
 -- ============================================================================
--- Export Local Copy for Verification
+-- Catalog Metadata (for S3 sync via workflow)
 -- ============================================================================
 
-COPY countries_final TO 'data/dm01_latest.parquet' (FORMAT 'PARQUET', COMPRESSION 'ZSTD');
+-- Create metadata file for the catalog
+-- The SQLite catalog file will be uploaded to S3 by the workflow
+COPY (
+    SELECT
+        'dm01' AS tap_id,
+        'World Population Data' AS tap_name,
+        's3://walkthru-earth/dm01/' AS s3_base_path,
+        's3://walkthru-earth/dm01/catalog.ducklake' AS catalog_s3_path,
+        's3://walkthru-earth/dm01/data/' AS data_s3_path,
+        (SELECT COUNT(*) FROM countries_final) AS total_records,
+        CURRENT_TIMESTAMP AS last_updated,
+        'Catalog stored locally at data/dm01.ducklake' AS note
+) TO 'data/catalog_metadata.parquet';
 
 -- ============================================================================
 -- Summary
 -- ============================================================================
 
+-- Attach catalog again to read summary
+ATTACH 'ducklake:sqlite:data/dm01.ducklake' AS dm01_lake (READ_ONLY);
+
 SELECT
     'Export Complete' AS status,
-    (SELECT tap_id FROM _config) AS tap_id,
-    COUNT(*) AS total_records,
+    'dm01' AS dataset_id,
+    'World Population Data' AS dataset_name,
     's3://walkthru-earth/dm01/' AS s3_location,
-    (SELECT extracted_at FROM _config) AS extracted_at
-FROM countries_final;
+    (SELECT COUNT(*) FROM dm01_lake.countries) AS total_records,
+    CURRENT_TIMESTAMP AS extracted_at
+FROM (SELECT 1) AS dummy;
