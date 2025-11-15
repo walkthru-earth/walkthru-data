@@ -67,8 +67,8 @@ runner:
   # Hetzner Cloud self-hosted runner configuration
   # See: https://github.com/Cyclenerd/hcloud-github-runner
   provider: hetzner  # Always use Hetzner (98% cheaper than GitHub runners)
-  server_type: cx22  # 2 vCPU, 4GB RAM, 40GB SSD ($0.0074/hr vs GitHub $0.48/hr)
-  architecture: x86  # x86 or arm (Ampere Altra)
+  server_type: cax11  # 2 vCPU, 4GB RAM, 40GB SSD (ARM Ampere Altra)
+  architecture: arm  # arm (Ampere Altra) or x86
   image: ubuntu-24.04  # OS image
   location: nbg1  # Nuremberg, Germany (eu-central)
   # Available server types:

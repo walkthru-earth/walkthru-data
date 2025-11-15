@@ -118,8 +118,8 @@ extract:
 
 runner:
   provider: hetzner
-  server_type: cx22  # 2 vCPU, 4GB RAM, 40GB SSD
-  architecture: x86  # x86 or arm
+  server_type: cax11  # 2 vCPU, 4GB RAM, 40GB SSD (ARM Ampere Altra)
+  architecture: arm  # arm (Ampere Altra) or x86
   image: ubuntu-24.04
   location: nbg1  # nbg1 (Nuremberg), fsn1 (Falkenstein), hel1 (Helsinki)
 

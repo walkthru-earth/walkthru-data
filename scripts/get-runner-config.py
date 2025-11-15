@@ -25,8 +25,8 @@ def get_runner_config(tap_id):
 
     # Defaults
     return {
-        'server_type': runner.get('server_type', 'cx22'),
-        'architecture': runner.get('architecture', 'x86'),
+        'server_type': runner.get('server_type', 'cax11'),
+        'architecture': runner.get('architecture', 'arm'),
         'image': runner.get('image', 'ubuntu-24.04'),
         'location': runner.get('location', 'nbg1'),
         'timeout_minutes': extract.get('timeout_minutes', 30)

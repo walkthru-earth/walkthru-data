@@ -11,10 +11,10 @@ on:
         required: true
         type: string
       server_type:
-        description: 'Hetzner server type (cx22, cx32, cx42, etc.)'
+        description: 'Hetzner server type (cax11, cax21, cx22, cx32, etc.)'
         required: false
         type: string
-        default: 'cx22'
+        default: 'cax11'
       image:
         description: 'OS image (ubuntu-24.04, rocky-9, etc.)'
         required: false
