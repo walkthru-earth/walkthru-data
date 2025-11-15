@@ -67,8 +67,29 @@ jobs:
 
       - name: Install DuckDB
         run: |
+          # Auto-detect OS and architecture
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+
+          # Map architecture names to DuckDB naming convention
+          case "$ARCH" in
+            x86_64|amd64) DUCKDB_ARCH="amd64" ;;
+            aarch64|arm64) DUCKDB_ARCH="arm64" ;;
+            *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+          esac
+
+          echo "Detected OS: $OS, Architecture: $ARCH (DuckDB: $DUCKDB_ARCH)"
+
+          # Download latest DuckDB CLI
           mkdir -p ~/.duckdb/bin
-          LATEST_URL=$(curl -s https://api.github.com/repos/duckdb/duckdb/releases/latest | grep 'browser_download_url.*duckdb_cli-linux-arm64.gz' | cut -d'"' -f4)
+          LATEST_URL=$(curl -s https://api.github.com/repos/duckdb/duckdb/releases/latest | grep "browser_download_url.*duckdb_cli-${OS}-${DUCKDB_ARCH}.gz" | cut -d'"' -f4)
+
+          if [ -z "$LATEST_URL" ]; then
+            echo "Error: Could not find DuckDB release for ${OS}-${DUCKDB_ARCH}"
+            exit 1
+          fi
+
+          echo "Downloading: $LATEST_URL"
           wget -q "$LATEST_URL" -O ~/.duckdb/bin/duckdb.gz
           gunzip ~/.duckdb/bin/duckdb.gz
           chmod +x ~/.duckdb/bin/duckdb
