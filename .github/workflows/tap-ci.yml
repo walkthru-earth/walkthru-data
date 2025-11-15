@@ -67,6 +67,7 @@ jobs:
       - name: Install DuckDB
         run: |
           curl -fsSL https://install.duckdb.org | sh
+          sudo mv ~/.duckdb/cli/latest/duckdb /usr/local/bin/
           duckdb --version
 
       - name: Setup directories
