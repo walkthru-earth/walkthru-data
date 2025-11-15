@@ -68,11 +68,11 @@ jobs:
       - name: Install DuckDB
         run: |
           curl -fsSL https://install.duckdb.org | sh
-          ls -la $HOME/.duckdb/cli/latest/
-          export PATH="$HOME/.duckdb/cli/latest:$PATH"
-          echo "$HOME/.duckdb/cli/latest" >> $GITHUB_PATH
+          ls -la ~/.duckdb/cli/latest/
+          export PATH=~/.duckdb/cli/latest:$PATH
+          echo ~/.duckdb/cli/latest >> $GITHUB_PATH
           which duckdb
-          $HOME/.duckdb/cli/latest/duckdb --version
+          duckdb --version
 
       - name: Setup directories
         run: |
