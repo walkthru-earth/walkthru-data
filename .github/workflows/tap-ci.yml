@@ -139,27 +139,18 @@ jobs:
             WHERE database_name = 'lake';
           "
 
-          # Install s5cmd for S3 uploads
-          # Get the correct download URL from GitHub API (handles version-specific naming)
-          OS=$(uname -s)  # Linux, Darwin, etc. (with capital first letter)
-          ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-          S5CMD_URL=$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest | grep "browser_download_url.*${OS}-${ARCH}.tar.gz" | cut -d'"' -f4)
-
-          if [ -z "$S5CMD_URL" ]; then
-            echo "❌ Error: Could not find s5cmd release for ${OS}-${ARCH}"
-            exit 1
-          fi
-
-          echo "Downloading s5cmd from: $S5CMD_URL"
-          wget -q "$S5CMD_URL" -O - | tar xz
-          chmod +x s5cmd
+          # Install AWS CLI for S3 uploads
+          curl -s "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          aws --version
 
           # Upload catalog to tap's isolated S3 directory
           echo "📤 Uploading catalog to s3://walkthru-earth/${{ inputs.tap_id }}/catalog.ducklake"
 
-          S3_ENDPOINT_URL="https://fsn1.your-objectstorage.com" \
-            ./s5cmd cp "data/${{ inputs.tap_id }}.ducklake" \
+          aws s3 cp "data/${{ inputs.tap_id }}.ducklake" \
             "s3://walkthru-earth/${{ inputs.tap_id }}/catalog.ducklake" \
+            --endpoint-url "https://fsn1.your-objectstorage.com" \
             && echo "✅ Catalog uploaded successfully" \
             || echo "⚠️  Catalog upload failed (will be available in artifacts)"
 

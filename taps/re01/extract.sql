@@ -143,46 +143,57 @@ SELECT
 FROM compounds_raw;
 
 -- ============================================================================
--- Export to S3 with Hive Partitioning
+-- DuckLake Setup (Simple & Isolated)
 -- ============================================================================
 
--- Export Standard Parquet (without geometry)
--- Path: s3://walkthru-earth/re01/country=EGY/year=YYYY/month=MM/*.parquet
+-- Install DuckLake extension
+INSTALL ducklake;
+LOAD ducklake;
+
+-- Attach DuckLake - Simple isolated structure
+-- Catalog: s3://walkthru-earth/re01/catalog.ducklake
+-- Data:    s3://walkthru-earth/re01/
+ATTACH 'ducklake:sqlite:data/re01.ducklake' AS re01_lake (
+    DATA_PATH 's3://walkthru-earth/re01/'
+);
+
+-- Create table in DuckLake (automatically versioned and snapshotted)
+CREATE OR REPLACE TABLE re01_lake.compounds AS
+SELECT * FROM compounds_final;
+
+-- Detach to ensure all writes are flushed
+DETACH re01_lake;
+
+-- ============================================================================
+-- Catalog Metadata (for S3 sync via workflow)
+-- ============================================================================
+
+-- Create metadata file for the catalog
+-- The SQLite catalog file will be uploaded to S3 by the workflow
 COPY (
-    SELECT * EXCLUDE (geometry)
-    FROM compounds_final
-) TO 's3://walkthru-earth/re01'
-(
-    FORMAT 'PARQUET',
-    PARTITION_BY (country, year, month),
-    COMPRESSION 'ZSTD',
-    ROW_GROUP_SIZE 100000
-);
-
--- Export GeoParquet (with geometry)
--- Path: s3://walkthru-earth/re01-geo/country=EGY/year=YYYY/month=MM/*.parquet
-COPY compounds_final
-TO 's3://walkthru-earth/re01-geo'
-(
-    FORMAT 'PARQUET',
-    PARTITION_BY (country, year, month),
-    COMPRESSION 'ZSTD'
-);
-
--- Also save locally for testing
-COPY compounds_final TO 'data/re01_latest.parquet'
-(FORMAT 'PARQUET', COMPRESSION 'ZSTD');
+    SELECT
+        're01' AS tap_id,
+        'Nawy Real Estate Data' AS tap_name,
+        's3://walkthru-earth/re01/' AS s3_base_path,
+        's3://walkthru-earth/re01/catalog.ducklake' AS catalog_s3_path,
+        's3://walkthru-earth/re01/data/' AS data_s3_path,
+        (SELECT COUNT(*) FROM compounds_final) AS total_records,
+        CURRENT_TIMESTAMP AS last_updated,
+        'Catalog stored locally at data/re01.ducklake' AS note
+) TO 'data/catalog_metadata.parquet';
 
 -- ============================================================================
 -- Summary
 -- ============================================================================
 
+-- Attach catalog again to read summary
+ATTACH 'ducklake:sqlite:data/re01.ducklake' AS re01_lake (READ_ONLY);
+
 SELECT
     'Export Complete' AS status,
-    (SELECT tap_id FROM _config) AS tap_id,
-    COUNT(*) AS total_records,
-    's3://walkthru-earth/re01/country=' || (SELECT country FROM _config) ||
-        '/year=' || (SELECT year FROM _config) ||
-        '/month=' || LPAD((SELECT month FROM _config)::VARCHAR, 2, '0') || '/' AS s3_location,
-    (SELECT extracted_at FROM _config) AS extracted_at
-FROM compounds_final;
+    're01' AS dataset_id,
+    'Nawy Real Estate Data' AS dataset_name,
+    's3://walkthru-earth/re01/' AS s3_location,
+    (SELECT COUNT(*) FROM re01_lake.compounds) AS total_records,
+    CURRENT_TIMESTAMP AS extracted_at
+FROM (SELECT 1) AS dummy;
