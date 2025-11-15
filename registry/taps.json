@@ -33,13 +33,46 @@
       },
       "s3_path": "s3://walkthru-earth/re01/",
       "catalog": "s3://walkthru-earth/re01/catalog.db"
+    },
+    {
+      "id": "dm01",
+      "namespace": "walkthru",
+      "full_id": "walkthru/dm01",
+      "name": "World Population Data",
+      "description": "Country population and demographic data from REST Countries API",
+      "category": "demographics",
+      "tags": ["world", "population", "countries", "demographics"],
+      "homepage": "https://restcountries.com",
+      "created": "2025-11-15",
+      "updated": "2025-11-15",
+      "version": "1.0.0",
+      "maintainers": [
+        {
+          "github": "yharby",
+          "email": "yharby@walkthru.earth"
+        }
+      ],
+      "schedule": {
+        "frequency": "monthly",
+        "day": 1,
+        "time": "02:00",
+        "timezone": "UTC"
+      },
+      "metrics": {
+        "records": 250,
+        "file_size_mb": 1,
+        "downloads": 0
+      },
+      "s3_path": "s3://walkthru-earth/dm01/",
+      "catalog": "s3://walkthru-earth/dm01/catalog.db"
     }
   ],
   "stats": {
-    "total_taps": 1,
+    "total_taps": 2,
     "categories": {
-      "real-estate": 1
+      "real-estate": 1,
+      "demographics": 1
     },
-    "total_records": 1200
+    "total_records": 1450
   }
 }

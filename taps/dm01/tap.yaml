@@ -1,0 +1,133 @@
+# Tap Manifest
+# Format: https://walkthru-data.readthedocs.io/tap-manifest/
+
+tap:
+  id: dm01
+  namespace: walkthru
+  full_id: walkthru/dm01
+
+meta:
+  name: "World Population Data"
+  description: "Country population and demographic data from REST Countries API"
+  category: demographics
+  tags:
+    - world
+    - population
+    - countries
+    - demographics
+  license: Open Data Commons Open Database License (ODbL)
+  homepage: https://restcountries.com
+  source_url: https://restcountries.com/v3.1/all
+
+source:
+  type: api
+  method: http_get
+  auth: none
+  rate_limit: null
+  coverage:
+    region: Global
+    bbox:
+      min_lat: -90.0
+      max_lat: 90.0
+      min_lon: -180.0
+      max_lon: 180.0
+
+output:
+  format: ducklake
+  storage: s3
+  bucket: walkthru-earth
+  path: dm01
+  partitions:
+    - year
+    - month
+  compression: zstd
+  row_group_size: 100000
+
+schedule:
+  frequency: monthly  # monthly, weekly, daily
+  day: 1
+  time: "02:00"
+  timezone: UTC
+  enabled: true
+
+extract:
+  script: extract.sql
+  engine: duckdb
+  version: "1.4.2"
+  extensions:
+    - httpfs
+    - http_client
+    - json
+  timeout_minutes: 10
+
+runner:
+  provider: hetzner
+  server_type: cx22  # 2 vCPU, 4GB RAM, 40GB SSD
+  architecture: x86  # x86 or arm
+  image: ubuntu-24.04
+  location: nbg1  # nbg1 (Nuremberg), fsn1 (Falkenstein), hel1 (Helsinki)
+
+catalog:
+  type: sqlite
+  location: catalog.db
+  sync_to_s3: true
+  central_registry: true
+  retention_snapshots: 12
+
+schema:
+  version: "1.0.0"
+  fields:
+    - name: extracted_at
+      type: TIMESTAMP
+      description: Extraction timestamp
+    - name: year
+      type: INTEGER
+      description: Partition key - year
+    - name: month
+      type: INTEGER
+      description: Partition key - month
+    - name: country_code
+      type: VARCHAR
+      description: ISO 3166-1 alpha-3 country code
+      primary_key: true
+    - name: country_name
+      type: VARCHAR
+      description: Common country name
+    - name: official_name
+      type: VARCHAR
+      description: Official country name
+    - name: population
+      type: INTEGER
+      description: Population count
+    - name: area_km2
+      type: DOUBLE
+      description: Area in square kilometers
+    - name: region
+      type: VARCHAR
+      description: Geographic region
+    - name: subregion
+      type: VARCHAR
+      description: Geographic subregion
+    - name: capital
+      type: VARCHAR
+      description: Capital city
+    - name: latitude
+      type: DOUBLE
+      description: Latitude coordinate
+    - name: longitude
+      type: DOUBLE
+      description: Longitude coordinate
+
+maintainers:
+  - github: yharby
+    email: yharby@walkthru.earth
+    role: owner
+
+metrics:
+  expected_records: 250
+  expected_file_size_mb: 1
+  freshness_hours: 720
+
+created: "2025-11-15"
+updated: "2025-11-15"
+version: "1.0.0"

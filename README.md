@@ -26,6 +26,7 @@ walkthru query re01@20251101 "SELECT COUNT(*) FROM data"
 | ID | Name | Category | Update | Records |
 |----|------|----------|--------|---------|
 | [re01](taps/re01/) | Nawy Real Estate Data | Real Estate | Monthly | ~1,200 |
+| [dm01](taps/dm01/) | World Population Data | Demographics | Monthly | ~250 |
 
 ## Architecture
 

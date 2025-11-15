@@ -145,7 +145,7 @@ schema:
 
 maintainers:
   - github: yharby
-    email: harby@walkthru.earth
+    email: yharby@walkthru.earth
     role: owner
 
 metrics:
