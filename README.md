@@ -1,8 +1,6 @@
 # Walkthru Data
 
-**Think: Homebrew for Open Data Pipelines**
-
-A package manager for discovering, installing, and querying open datasets. Each "tap" extracts data from public sources (APIs, satellites, surveys) and publishes versioned snapshots to S3 with DuckLake catalogs.
+Open data pipeline infrastructure for discovering, installing, and querying public datasets. Each "tap" extracts data from public sources (APIs, satellites, surveys) and publishes versioned snapshots to S3 with DuckLake catalogs.
 
 ## Quick Start
 
@@ -33,7 +31,7 @@ walkthru query re01@20251101 "SELECT COUNT(*) FROM data"
 
 ```
 walkthru-data/
-├── taps/              # Dataset definitions (like Homebrew formulae)
+├── taps/              # Dataset definitions
 │   └── re01/          # Short ID: Real Estate #01
 │       ├── tap.yaml   # Manifest
 │       ├── extract.sql # DuckDB extraction script
@@ -111,7 +109,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ✅ **Version history**: DuckLake catalogs track all snapshots
 ✅ **Time travel**: Query any historical snapshot
 ✅ **Auto-generated workflows**: From tap.yaml manifest
-✅ **CLI tool**: Like Homebrew (`brew install`)
+✅ **CLI tool**: Install and query datasets
 ✅ **Searchable registry**: Find datasets quickly
 ✅ **Hive partitioning**: Efficient queries
 ✅ **Open formats**: Parquet, GeoParquet
@@ -130,6 +128,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 - **Runners**: Self-hosted on Hetzner Cloud (~98% cheaper than GitHub)
 - **Storage**: S3-compatible (Hetzner Object Storage)
 - **Cost**: ~$73/month for 100 datasets, 1TB storage
+- **Setup**: See [SECRETS.md](SECRETS.md) for required GitHub secrets configuration
 
 ## Documentation
 
@@ -147,8 +146,7 @@ MIT - Data subject to original sources' terms
 
 Built by [Walkthru Earth](https://walkthru.earth)
 
-Inspired by:
-- [Homebrew](https://brew.sh/) - Package manager
-- [conda-forge](https://conda-forge.org/) - Community recipes
+Powered by:
 - [DuckDB](https://duckdb.org/) - Analytics engine
 - [DuckLake](https://ducklake.select/) - Lakehouse format
+- [Hetzner Cloud](https://www.hetzner.com/cloud) - Infrastructure
