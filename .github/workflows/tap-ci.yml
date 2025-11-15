@@ -68,7 +68,7 @@ jobs:
         run: |
           curl -fsSL https://install.duckdb.org | sh
           echo "$HOME/.duckdb/cli/latest" >> $GITHUB_PATH
-          $HOME/.duckdb/cli/latest/duckdb --version
+          ~/.duckdb/cli/latest/duckdb --version
 
       - name: Setup directories
         run: |
