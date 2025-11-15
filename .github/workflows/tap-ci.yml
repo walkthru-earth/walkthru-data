@@ -50,6 +50,7 @@ jobs:
           mode: create
           github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          name: gh-runner-${{ inputs.tap_id }}
           server_type: ${{ inputs.server_type }}
           location: ${{ inputs.location }}
           image: ${{ inputs.image }}
@@ -67,8 +68,9 @@ jobs:
       - name: Install DuckDB
         run: |
           curl -fsSL https://install.duckdb.org | sh
+          export PATH="$HOME/.duckdb/cli/latest:$PATH"
           echo "$HOME/.duckdb/cli/latest" >> $GITHUB_PATH
-          ~/.duckdb/cli/latest/duckdb --version
+          duckdb --version
 
       - name: Setup directories
         run: |
