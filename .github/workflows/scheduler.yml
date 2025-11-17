@@ -6,7 +6,7 @@ name: Tap Scheduler
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '0 12 * * *'  # Every day at 12:00 (noon) UTC
   workflow_dispatch:     # Manual trigger
     inputs:
       tap_id:
